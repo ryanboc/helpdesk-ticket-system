@@ -13,6 +13,11 @@ class Ticket extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function assignedTo()
+    {
+        return $this->belongsTo(User::class, 'assigned_to_id');
+    }
+
     public function comments()
     {
         return $this->hasMany(Comment::class);

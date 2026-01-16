@@ -26,38 +26,52 @@ class TicketResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Select::make('user_id')
-                    ->relationship('user', 'name')
-                    // Disable this field if the user is NOT an admin
-                    ->disabled(fn () => ! auth()->user()->is_admin)
-                    ->required(),
+            // 1. The "Assignee" (Agent working on the ticket)
+            Forms\Components\Select::make('assigned_to_id')
+                ->label('Assign to Employee')
+                ->relationship('assignedTo', 'name')
+                ->searchable()
+                ->preload()
+                ->placeholder('Unassigned'),
 
-                Forms\Components\TextInput::make('title')
-                    ->required()
-                    ->maxLength(255),
+            // 2. The "Creator" (Customer) - THIS WAS MISSING
+            Forms\Components\Select::make('user_id')
+                ->relationship('user', 'name')
+                ->default(auth()->id())
+                ->searchable()
+                ->preload()
+                ->required()
+                // Disable for non-admins so they can't pretend to be someone else
+                ->disabled(fn () => ! auth()->user()->is_admin)
+                // IMPORTANT: Send the data even if disabled!
+                ->dehydrated(),
 
-                Forms\Components\Textarea::make('message')
-                    ->required()
-                    ->columnSpanFull(),
+            Forms\Components\TextInput::make('title')
+                ->required()
+                ->maxLength(255)
+                ->columnSpanFull(), // Optional: Makes title take up full width
 
-                Forms\Components\Select::make('priority')
-                    ->options([
-                        'low' => 'Low',
-                        'medium' => 'Medium',
-                        'high' => 'High',
-                    ])
-                    ->required(),
+            Forms\Components\Textarea::make('message')
+                ->required()
+                ->columnSpanFull(),
 
-                Forms\Components\Select::make('status')
-                    ->options([
-                        'open' => 'Open',
-                        'in_progress' => 'In Progress',
-                        'closed' => 'Closed',
-                    ])
-                    ->default('open')
-                    // You usually don't set status when creating a ticket, only when editing
-                    ->hiddenOn('create'),
-            ]);
+            Forms\Components\Select::make('priority')
+                ->options([
+                    'low' => 'Low',
+                    'medium' => 'Medium',
+                    'high' => 'High',
+                ])
+                ->required(),
+
+            Forms\Components\Select::make('status')
+                ->options([
+                    'open' => 'Open',
+                    'in_progress' => 'In Progress',
+                    'closed' => 'Closed',
+                ])
+                ->default('open')
+                ->hiddenOn('create'),
+        ]);
     }
 
     public static function table(Table $table): Table
@@ -69,6 +83,11 @@ class TicketResource extends Resource
 
                 Tables\Columns\TextColumn::make('user.name')
                     ->label('Customer')
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('assignedTo.name')
+                    ->label('Assigned Agent')
+                    ->placeholder('Unassigned')
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('priority')
