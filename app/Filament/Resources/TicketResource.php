@@ -11,48 +11,53 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class TicketResource extends Resource
 {
     protected static ?string $model = Ticket::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-ticket'; // Changed to ticket icon
+
+    protected static ?string $navigationLabel = 'Support Tickets';
+
+    protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-            // Select the user (if an admin is creating it)
-            // or hide this field if the user creates it themselves
-            Forms\Components\Select::make('user_id')
-                ->relationship('user', 'name')
-                ->required(),
+                Forms\Components\Select::make('user_id')
+                    ->relationship('user', 'name')
+                    // Disable this field if the user is NOT an admin
+                    ->disabled(fn () => ! auth()->user()->is_admin)
+                    ->required(),
 
-            Forms\Components\TextInput::make('title')
-                ->required()
-                ->maxLength(255),
+                Forms\Components\TextInput::make('title')
+                    ->required()
+                    ->maxLength(255),
 
-            Forms\Components\Textarea::make('message')
-                ->required()
-                ->columnSpanFull(), // Make it wide
+                Forms\Components\Textarea::make('message')
+                    ->required()
+                    ->columnSpanFull(),
 
-            Forms\Components\Select::make('priority')
-                ->options([
-                    'low' => 'Low',
-                    'medium' => 'Medium',
-                    'high' => 'High',
-                ])
-                ->required(),
+                Forms\Components\Select::make('priority')
+                    ->options([
+                        'low' => 'Low',
+                        'medium' => 'Medium',
+                        'high' => 'High',
+                    ])
+                    ->required(),
 
-            Forms\Components\Select::make('status')
-                ->options([
-                    'open' => 'Open',
-                    'closed' => 'Closed',
-                ])
-                ->default('open')
-                ->visibleOn('edit'), // Only show status when editing, not creating
-        ]);
+                Forms\Components\Select::make('status')
+                    ->options([
+                        'open' => 'Open',
+                        'in_progress' => 'In Progress',
+                        'closed' => 'Closed',
+                    ])
+                    ->default('open')
+                    // You usually don't set status when creating a ticket, only when editing
+                    ->hiddenOn('create'),
+            ]);
     }
 
     public static function table(Table $table): Table
@@ -60,13 +65,12 @@ class TicketResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('title')
-                    ->searchable(), // Auto-adds a search bar!
+                    ->searchable(),
 
                 Tables\Columns\TextColumn::make('user.name')
                     ->label('Customer')
                     ->sortable(),
 
-                // Badge automatically colors the status
                 Tables\Columns\TextColumn::make('priority')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
@@ -74,12 +78,21 @@ class TicketResource extends Resource
                         'medium' => 'warning',
                         'low' => 'success',
                     }),
+                
+                Tables\Columns\TextColumn::make('status')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'open' => 'gray',
+                        'in_progress' => 'info',
+                        'closed' => 'success',
+                    }),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('priority'),
+                Tables\Filters\SelectFilter::make('status'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
@@ -104,7 +117,8 @@ class TicketResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            // This is where your comments/replies will appear
+            RelationManagers\CommentsRelationManager::class,
         ];
     }
 
