@@ -14,13 +14,18 @@ use Illuminate\Database\Eloquent\Builder;
 
 class TicketResource extends Resource
 {
-    protected static ?string $model = Ticket::class;
+    // protected static ?string $model = Ticket::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-ticket'; // Changed to ticket icon
 
-    protected static ?string $navigationLabel = 'Support Tickets';
+    // protected static ?string $navigationLabel = 'Support Tickets';
 
     protected static ?int $navigationSort = 1;
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
 
     public static function form(Form $form): Form
     {

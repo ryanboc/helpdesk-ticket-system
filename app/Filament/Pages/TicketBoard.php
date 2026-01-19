@@ -12,7 +12,7 @@ class TicketBoard extends KanbanBoard
     // Strict string type (No "?" allowed here)
     protected static string $model = Ticket::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-view-columns';
+    protected static ?string $navigationIcon = 'heroicon-o-ticket';
 
     protected static ?string $navigationLabel = 'Ticket Board';
 
