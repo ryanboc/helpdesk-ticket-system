@@ -52,6 +52,12 @@ class UserResource extends Resource
         ]);
     }
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        // Only show this menu item if the user is an Admin
+        return auth()->user()?->is_admin ?? false;
+    }
+
     public static function table(Table $table): Table
     {
         return $table

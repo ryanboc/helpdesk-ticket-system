@@ -40,9 +40,12 @@ class TicketBoard extends KanbanBoard
     {
         $query = Ticket::query();
 
-        // Security: If not admin, only show my own tickets
+        // If the user is NOT an admin, limit what they can see
         if (! auth()->user()->is_admin) {
-            $query->where('user_id', auth()->id());
+            $query->where(function ($query) {
+                $query->where('user_id', auth()->id()) // Tickets I created
+                      ->orWhere('assigned_to_id', auth()->id()); // Tickets assigned to me
+            });
         }
 
         return $query->latest()->get();
