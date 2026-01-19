@@ -1,35 +1,81 @@
-# Helpdesk Ticket System (Laravel + Filament)
+<h1 align="center">🎫 Helpdesk Ticket System</h1>
 
-Helpdesk Ticket System is a Laravel application built with **Filament** for managing internal support tickets using a **Kanban board** workflow.
+<p align="center">
+  A Laravel + Filament helpdesk app for managing employees and support tickets with a Kanban workflow.
+</p>
 
-## Features
-- User authentication
-- Employees management
-- Tickets management
-- Kanban board for ticket statuses (e.g. Open, In Progress, Closed)
+<p align="center">
+  <img alt="Laravel" src="https://img.shields.io/badge/Laravel-Framework-FF2D20?logo=laravel&logoColor=white">
+  <img alt="PHP" src="https://img.shields.io/badge/PHP-8.2%2B-777BB4?logo=php&logoColor=white">
+  <img alt="Filament" src="https://img.shields.io/badge/Filament-Admin_Panel-F59E0B?logoColor=white">
+  <img alt="Status" src="https://img.shields.io/badge/Status-Active-22C55E">
+  <img alt="License" src="https://img.shields.io/badge/License-Private-64748B">
+</p>
 
 ---
 
-## Tech Stack
+## ✨ Highlights
+- 🔐 User authentication
+- 👥 Employee management
+- 🎟️ Ticket management
+- 🧩 Kanban board (Open → In Progress → Closed)
+- 🧹 Clean Filament admin UI (fast CRUD + workflows)
+
+---
+
+## 🧭 Table of Contents
+- [Features](#-features)
+- [Tech Stack](#-tech-stack)
+- [Requirements](#-requirements)
+- [Getting Started](#-getting-started)
+- [Filament Admin](#-filament-admin)
+- [Ticket Workflow](#-ticket-workflow)
+- [Configuration](#-configuration)
+- [Deployment](#-deployment)
+- [Troubleshooting](#-troubleshooting)
+- [License](#-license)
+
+---
+
+## ✅ Features
+### Core
+- Authentication (login/logout)
+- Employees CRUD
+- Tickets CRUD
+- Kanban board for ticket statuses
+
+### Typical Ticket Fields (example)
+- Title / Description
+- Priority (Low/Medium/High)
+- Status (Open/In Progress/Closed)
+- Assigned To (employee/user)
+- Created By (user)
+- Timestamps and audit trail (if enabled)
+
+---
+
+## 🧰 Tech Stack
 - Laravel
 - Filament Admin Panel
-- (Optional) Filament Kanban plugin (if used)
 - PHP / Composer
 - Node.js / NPM (Vite)
+- MySQL/MariaDB (or PostgreSQL)
+
+> If you use a Kanban plugin/package, document it in the project (e.g. in `composer.json`) and mention it here.
 
 ---
 
-## Requirements
+## 📦 Requirements
 - PHP 8.2+ (recommended)
 - Composer
 - Node.js + NPM
-- MySQL/MariaDB (or PostgreSQL)
-- NGINX or Apache
+- Database: MySQL/MariaDB (or PostgreSQL)
+- Web server: NGINX or Apache
 - Git
 
 ---
 
-## Installation (Quick Start)
+## 🚀 Getting Started
 
 ### 1) Clone the repository
 ```bash
@@ -43,21 +89,34 @@ composer install
 npm install
 ```
 
-### 3) Environment setup
+### 3) Setup environment
 ```bash
 cp .env.example .env
 php artisan key:generate
 ```
 
-Update `.env` credentials (DB, APP_URL, etc).
+Update your `.env` (DB, APP_URL, etc). Example:
+```env
+APP_NAME="Helpdesk Ticket System"
+APP_ENV=local
+APP_DEBUG=true
+APP_URL=http://helpdesk.test
 
-### 4) Permissions
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=helpdesk
+DB_USERNAME=root
+DB_PASSWORD=secret
+```
+
+### 4) Set folder permissions
 ```bash
 sudo chown -R www-data:www-data storage bootstrap/cache
 sudo chmod -R 775 storage bootstrap/cache
 ```
 
-### 5) Database
+### 5) Migrate database
 ```bash
 php artisan migrate
 ```
@@ -67,7 +126,7 @@ php artisan migrate
 php artisan db:seed
 ```
 
-### 6) Frontend assets
+### 6) Build frontend assets
 Development:
 ```bash
 npm run dev
@@ -80,7 +139,7 @@ npm run build
 
 ---
 
-## Filament Admin Panel
+## 🛠️ Filament Admin
 Default Filament admin path is usually:
 - `/admin`
 
@@ -91,24 +150,45 @@ php artisan make:filament-user
 
 ---
 
-## Tickets & Kanban Board
+## 🗂️ Ticket Workflow
 
-Tickets are managed through Filament resources/pages, with a Kanban board view for status tracking.
+### Status flow
+- **Open** → **In Progress** → **Closed**
 
-Typical statuses:
-- Open
-- In Progress
-- Closed
+```mermaid
+flowchart LR
+  A[Open] --> B[In Progress] --> C[Closed]
 
-> If your project uses a specific Kanban plugin/package, document it here (package name + link) and any config notes.
+  classDef open fill:#22c55e,stroke:#16a34a,color:#0b1220;
+  classDef prog fill:#f59e0b,stroke:#d97706,color:#0b1220;
+  classDef closed fill:#64748b,stroke:#475569,color:#ffffff;
+
+  class A open;
+  class B prog;
+  class C closed;
+```
+
+> Tip: If you add more statuses (e.g. “Blocked”, “Waiting on User”), keep them consistent between the Kanban page and the database enum/column rules.
 
 ---
 
-## Web Server Config
+## ⚙️ Configuration
+
+### Key environment variables
+| Key | Purpose |
+|---|---|
+| `APP_URL` | Base URL (important for links/assets) |
+| `DB_*` | Database connection |
+| `MAIL_*` | Email notifications (optional) |
+| `QUEUE_CONNECTION` | Background processing (optional) |
+
+---
+
+## 🌐 Deployment
 
 > Replace paths, domain, and PHP-FPM version to match your environment.
 
-### NGINX
+### NGINX (recommended)
 Create:
 `/etc/nginx/sites-available/helpdesk-ticket-system`
 
@@ -146,7 +226,7 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-### Apache
+### Apache (with rewrite)
 Create:
 `/etc/apache2/sites-available/helpdesk-ticket-system.conf`
 
@@ -175,14 +255,14 @@ sudo systemctl reload apache2
 
 ---
 
-## Troubleshooting
+## 🧯 Troubleshooting
 
 ### Clear caches
 ```bash
 php artisan optimize:clear
 ```
 
-### Common permission fix
+### Permission issues
 ```bash
 sudo chown -R www-data:www-data storage bootstrap/cache
 sudo chmod -R 775 storage bootstrap/cache
@@ -201,5 +281,17 @@ npm run build
 
 ---
 
-## License
+## 📷 Screenshots (optional)
+Add screenshots to:
+- `docs/images/kanban.png`
+- `docs/images/ticket.png`
+
+Then embed them here, for example:
+```md
+![Kanban Board](docs/images/kanban.png)
+```
+
+---
+
+## 📄 License
 Private / Internal project (update as needed).
