@@ -281,10 +281,9 @@ npm run build
 
 ---
 
-## 📷 Screenshots (optional)
-Add screenshots to:
-- `docs/images/kanban.png`
-- `docs/images/ticket.png`
+## 📷 Screenshots
+![Kanban Board](docs/images/kanban.png)
+
 
 Then embed them here, for example:
 ```md
