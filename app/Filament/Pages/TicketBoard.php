@@ -3,10 +3,12 @@
 namespace App\Filament\Pages;
 
 use App\Models\Ticket;
+use App\Models\Comment;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Forms;
 use Mokhosh\FilamentKanban\Pages\KanbanBoard;
+use Illuminate\Support\Facades\Blade;
 
 class TicketBoard extends KanbanBoard
 {
@@ -15,6 +17,8 @@ class TicketBoard extends KanbanBoard
     protected static ?string $navigationIcon = 'heroicon-o-view-columns';
     protected static ?string $navigationLabel = 'Ticket Board';
     protected static ?int $navigationSort = 2;
+
+    public $ticketComments = [];
 
     protected function statuses(): \Illuminate\Support\Collection
     {
@@ -119,21 +123,82 @@ class TicketBoard extends KanbanBoard
     protected function getEditModalFormSchema(null|int|string $recordId): array
     {
         return [
-            Forms\Components\Select::make('assigned_to_id')
-                ->relationship('assignedTo', 'name')
-                ->searchable()
-                ->preload(),
-            Forms\Components\TextInput::make('title')->required(),
-            Forms\Components\Textarea::make('message')
-                ->rows(4)
+            Forms\Components\Grid::make(2)->schema([
+                Forms\Components\Select::make('assigned_to_id')
+                    ->relationship('assignedTo', 'name')
+                    ->searchable()
+                    ->preload(),
+                    
+                Forms\Components\Select::make('priority')
+                    ->options(['low' => 'Low', 'medium' => 'Medium', 'high' => 'High'])
+                    ->required(),
+
+                Forms\Components\Select::make('status')
+                    ->options(['open' => 'Open', 'in_progress' => 'In Progress', 'closed' => 'Closed'])
+                    ->required(),
+            ]),
+
+            Forms\Components\TextInput::make('title')->required()->columnSpanFull(),
+
+            // Read-Only Original Message
+            Forms\Components\Textarea::make('original_message')
+                ->label('Original Issue')
+                ->disabled()
+                ->rows(3)
                 ->columnSpanFull(),
-            Forms\Components\Select::make('status')
-                ->options(['open' => 'Open', 'in_progress' => 'In Progress', 'closed' => 'Closed'])
-                ->required(),
-            Forms\Components\Select::make('priority')
-                ->options(['low' => 'Low', 'medium' => 'Medium', 'high' => 'High'])
-                ->required(),
+
+            Forms\Components\Section::make('Work Notes & History')
+                ->schema([
+                   Forms\Components\Placeholder::make('history')
+                    ->hiddenLabel()
+                    ->content(function () {
+                        // 1. Get the Ticket ID
+                        $recordId = $this->editModalRecordId;
+                        
+                        // 2. Fetch comments directly from DB (Fixes the empty array bug)
+                        $comments = $recordId 
+                            ? \App\Models\Comment::where('ticket_id', $recordId)->with('user')->latest()->get() 
+                            : collect();
+
+                        // 3. Pass real data to the view
+                        return view('filament.pages.ticket-comments', ['comments' => $comments]);
+                    }),
+                
+
+                Forms\Components\Textarea::make('new_comment')
+                    ->label('Add a Note / Reply')
+                    ->placeholder('Type your reply here...')
+                    ->rows(3),
+                ]),
         ];
+    }
+
+    public function editModalFormSubmitted(): void
+    {
+        $data = $this->editModalFormState;
+        $record = Ticket::find($this->editModalRecordId);
+
+        if ($record) {
+            // 1. Update the Ticket itself
+            $record->update([
+                'assigned_to_id' => $data['assigned_to_id'],
+                'title'          => $data['title'],
+                'status'         => $data['status'],
+                'priority'       => $data['priority'],
+            ]);
+
+            // 2. If there is a new note, Create it
+            if (!empty($data['new_comment'])) {
+                Comment::create([
+                    'ticket_id' => $record->id,
+                    'user_id'   => auth()->id(),
+                    'body'      => $data['new_comment'],
+                ]);
+            }
+        }
+
+        $this->dispatch('close-modal', id: 'kanban--edit-record-modal');
+        $this->dispatch('refresh-kanban'); // Forces board to reload to show changes if needed
     }
 
     protected function getEditModalActions(null|int|string $recordId): array

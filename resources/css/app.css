@@ -1,38 +1,19 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
-/* 1. The Card You Are Holding (Active Drag) */
+
+/* KANBAN DRAG EFFECTS */
 .sortable-drag {
     cursor: grabbing;
     opacity: 1 !important;
     background: white;
-    
-    /* The "Lift" Effect */
     transform: rotate(3deg) scale(1.02); 
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    
-    /* Blue border to highlight selection */
     border: 1px solid #3b82f6; 
     z-index: 9999;
 }
 
-/* 2. The Empty Space You Left Behind (Ghost) */
 .sortable-ghost {
     opacity: 0.6;
-    background: #f3f4f6; /* Light Gray */
-    border: 2px dashed #d1d5db; /* Dashed Border */
+    background: #f3f4f6;
+    border: 2px dashed #d1d5db;
     border-radius: 0.5rem;
-}
-
-/* Dark Mode Support (Optional) */
-@media (prefers-color-scheme: dark) {
-    .sortable-drag {
-        background: #1f2937; /* Dark Gray */
-        border-color: #3b82f6;
-    }
-    .sortable-ghost {
-        background: #374151;
-        border-color: #4b5563;
-    }
 }
