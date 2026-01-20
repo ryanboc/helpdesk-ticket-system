@@ -80,7 +80,7 @@ class TicketBoard extends KanbanBoard
             $this->editModalFormState = [
                 'assigned_to_id' => $record->assigned_to_id,
                 'title'          => $record->title,
-                'message'        => $record->message,
+                'original_message' => $record->message,
                 'status'         => $record->status,
                 'priority'       => $record->priority,
             ];
