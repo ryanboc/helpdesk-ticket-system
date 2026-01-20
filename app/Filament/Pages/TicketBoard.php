@@ -43,13 +43,13 @@ class TicketBoard extends KanbanBoard
 
     public function onStatusChanged(int|string $recordId, string $status, array $fromOrderedIds, array $toOrderedIds): void
     {
-        // 1. Log what is happening (Check storage/logs/laravel.log)
+        
         \Illuminate\Support\Facades\Log::info("DRAG EVENT FIRED:", [
             'record_id' => $recordId,
             'new_status' => $status
         ]);
 
-        // 2. Find the ticket
+        
         $ticket = Ticket::find($recordId);
 
         if (!$ticket) {
@@ -57,7 +57,7 @@ class TicketBoard extends KanbanBoard
             return;
         }
 
-        // 3. Try to update and catch errors
+        
         try {
             $ticket->update(['status' => $status]);
             \Illuminate\Support\Facades\Log::info("UPDATE SUCCESSFUL: Ticket #{$recordId} -> {$status}");
@@ -68,15 +68,15 @@ class TicketBoard extends KanbanBoard
 
     public function recordClicked(int|string $recordId, array $data = []): void
     {
-        // 1. Set the ID
+        
         $this->editModalRecordId = $recordId;
 
-        // 2. Find the Ticket
+        
         $record = Ticket::find($recordId);
 
-        // 3. FORCE FILL the form state (The "Brute Force" Fix)
+        
         if ($record) {
-            // We fill the specific array that the form reads from
+            
             $this->editModalFormState = [
                 'assigned_to_id' => $record->assigned_to_id,
                 'title'          => $record->title,
@@ -86,7 +86,7 @@ class TicketBoard extends KanbanBoard
             ];
         }
 
-        // 4. Open the modal
+       
         $this->dispatch('open-modal', id: 'kanban--edit-record-modal');
     }
 
@@ -140,7 +140,7 @@ class TicketBoard extends KanbanBoard
 
             Forms\Components\TextInput::make('title')->required()->columnSpanFull(),
 
-            // Read-Only Original Message
+            
             Forms\Components\Textarea::make('original_message')
                 ->label('Original Issue')
                 ->disabled()
@@ -152,15 +152,15 @@ class TicketBoard extends KanbanBoard
                    Forms\Components\Placeholder::make('history')
                     ->hiddenLabel()
                     ->content(function () {
-                        // 1. Get the Ticket ID
+                        
                         $recordId = $this->editModalRecordId;
                         
-                        // 2. Fetch comments directly from DB (Fixes the empty array bug)
+                        
                         $comments = $recordId 
                             ? \App\Models\Comment::where('ticket_id', $recordId)->with('user')->latest()->get() 
                             : collect();
 
-                        // 3. Pass real data to the view
+                       
                         return view('filament.pages.ticket-comments', ['comments' => $comments]);
                     }),
                 
@@ -179,7 +179,7 @@ class TicketBoard extends KanbanBoard
         $record = Ticket::find($this->editModalRecordId);
 
         if ($record) {
-            // 1. Update the Ticket itself
+            
             $record->update([
                 'assigned_to_id' => $data['assigned_to_id'],
                 'title'          => $data['title'],
@@ -187,7 +187,7 @@ class TicketBoard extends KanbanBoard
                 'priority'       => $data['priority'],
             ]);
 
-            // 2. If there is a new note, Create it
+            
             if (!empty($data['new_comment'])) {
                 Comment::create([
                     'ticket_id' => $record->id,
@@ -198,7 +198,7 @@ class TicketBoard extends KanbanBoard
         }
 
         $this->dispatch('close-modal', id: 'kanban--edit-record-modal');
-        $this->dispatch('refresh-kanban'); // Forces board to reload to show changes if needed
+        $this->dispatch('refresh-kanban');
     }
 
     protected function getEditModalActions(null|int|string $recordId): array
@@ -213,8 +213,8 @@ class TicketBoard extends KanbanBoard
     protected function sortableOptions(): array
     {
         return [
-            'ghostClass' => 'sortable-ghost', // The empty gray placeholder
-            'dragClass'  => 'sortable-drag',  // The tilted blue card
+            'ghostClass' => 'sortable-ghost', 
+            'dragClass'  => 'sortable-drag',  
             'animation'  => 150,
         ];
     }
