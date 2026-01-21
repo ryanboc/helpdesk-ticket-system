@@ -9,6 +9,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Forms;
 use Mokhosh\FilamentKanban\Pages\KanbanBoard;
 use Illuminate\Support\Facades\Blade;
+use Filament\Notifications\Notification;
 
 class TicketBoard extends KanbanBoard
 {
@@ -41,15 +42,39 @@ class TicketBoard extends KanbanBoard
             ->get();
     }
 
+    // public function onStatusChanged(int|string $recordId, string $status, array $fromOrderedIds, array $toOrderedIds): void
+    // {
+        
+    //     \Illuminate\Support\Facades\Log::info("DRAG EVENT FIRED:", [
+    //         'record_id' => $recordId,
+    //         'new_status' => $status
+    //     ]);
+
+        
+    //     $ticket = Ticket::find($recordId);
+
+    //     if (!$ticket) {
+    //         \Illuminate\Support\Facades\Log::error("TICKET NOT FOUND: ID " . $recordId);
+    //         return;
+    //     }
+
+        
+    //     try {
+    //         $ticket->update(['status' => $status]);
+    //         \Illuminate\Support\Facades\Log::info("UPDATE SUCCESSFUL: Ticket #{$recordId} -> {$status}");
+    //     } catch (\Exception $e) {
+    //         \Illuminate\Support\Facades\Log::error("UPDATE FAILED: " . $e->getMessage());
+    //     }
+    // }
+
     public function onStatusChanged(int|string $recordId, string $status, array $fromOrderedIds, array $toOrderedIds): void
     {
-        
+        // 1. Keep your existing Logging
         \Illuminate\Support\Facades\Log::info("DRAG EVENT FIRED:", [
             'record_id' => $recordId,
             'new_status' => $status
         ]);
 
-        
         $ticket = Ticket::find($recordId);
 
         if (!$ticket) {
@@ -57,10 +82,22 @@ class TicketBoard extends KanbanBoard
             return;
         }
 
-        
         try {
+            
             $ticket->update(['status' => $status]);
+            
             \Illuminate\Support\Facades\Log::info("UPDATE SUCCESSFUL: Ticket #{$recordId} -> {$status}");
+
+            
+            if ($ticket->assignedTo) {
+                Notification::make()
+                    ->title('Ticket Moved')
+                    ->body("Ticket '{$ticket->title}' is now " . str($status)->headline())
+                    ->icon('heroicon-o-arrow-path')
+                    ->info()
+                    ->sendToDatabase($ticket->assignedTo);
+            }
+
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("UPDATE FAILED: " . $e->getMessage());
         }
@@ -116,6 +153,16 @@ class TicketBoard extends KanbanBoard
                     $data['user_id'] = auth()->id();
                     $data['status'] = 'open';
                     return $data;
+                })
+                ->after(function (Ticket $record) {
+                    // Send notification to the assigned user (even if it's me)
+                    if ($record->assignedTo) {
+                        Notification::make()
+                            ->title('New Ticket Assigned')
+                            ->body("You have been assigned to '{$record->title}'")
+                            ->success()
+                            ->sendToDatabase($record->assignedTo);
+                    }
                 }),
         ];
     }
@@ -173,13 +220,44 @@ class TicketBoard extends KanbanBoard
         ];
     }
 
+    // public function editModalFormSubmitted(): void
+    // {
+    //     $data = $this->editModalFormState;
+    //     $record = Ticket::find($this->editModalRecordId);
+
+    //     if ($record) {
+            
+    //         $record->update([
+    //             'assigned_to_id' => $data['assigned_to_id'],
+    //             'title'          => $data['title'],
+    //             'status'         => $data['status'],
+    //             'priority'       => $data['priority'],
+    //         ]);
+
+            
+    //         if (!empty($data['new_comment'])) {
+    //             Comment::create([
+    //                 'ticket_id' => $record->id,
+    //                 'user_id'   => auth()->id(),
+    //                 'body'      => $data['new_comment'],
+    //             ]);
+    //         }
+    //     }
+
+    //     $this->dispatch('close-modal', id: 'kanban--edit-record-modal');
+    //     $this->dispatch('refresh-kanban');
+    // }
+
     public function editModalFormSubmitted(): void
     {
         $data = $this->editModalFormState;
         $record = Ticket::find($this->editModalRecordId);
 
         if ($record) {
-            
+            // 1. NEW: Capture old assignee ID before updating
+            $oldAssignee = $record->assigned_to_id;
+
+            // 2. Update the record
             $record->update([
                 'assigned_to_id' => $data['assigned_to_id'],
                 'title'          => $data['title'],
@@ -187,18 +265,53 @@ class TicketBoard extends KanbanBoard
                 'priority'       => $data['priority'],
             ]);
 
-            
+            // 3. NEW: Notify if Assignment Changed
+            if ($oldAssignee !== $data['assigned_to_id'] && $data['assigned_to_id']) {
+                $newAssignee = \App\Models\User::find($data['assigned_to_id']);
+                
+                if ($newAssignee) {
+                    Notification::make()
+                        ->title('New Ticket Assigned')
+                        ->body("You have been assigned to '{$record->title}'")
+                        ->success()
+                        ->sendToDatabase($newAssignee);
+                }
+            }
+
+            // 4. Create Comment & Notify
             if (!empty($data['new_comment'])) {
                 Comment::create([
                     'ticket_id' => $record->id,
                     'user_id'   => auth()->id(),
                     'body'      => $data['new_comment'],
                 ]);
+
+                // Notify the assignee (if it's not me)
+                if ($record->assignedTo && $record->assigned_to_id !== auth()->id()) {
+                    Notification::make()
+                        ->title('New Comment')
+                        ->body(auth()->user()->name . " commented on '{$record->title}'")
+                        ->icon('heroicon-o-chat-bubble-left-right')
+                        ->warning()
+                        ->sendToDatabase($record->assignedTo);
+                }
             }
         }
 
         $this->dispatch('close-modal', id: 'kanban--edit-record-modal');
         $this->dispatch('refresh-kanban');
+
+        // 5. NEW: Success Toast for the user who clicked Save
+        // Notification::make()
+        //     ->title('Saved successfully')
+        //     ->success()
+        //     ->send();
+        Notification::make()
+            ->title('System Test')
+            ->body('If you see this, the Bell is working!')
+            ->success()
+            ->sendToDatabase(auth()->user()) // <--- Force send to YOU
+            ->send(); // <--- Also show the Toast
     }
 
     protected function getEditModalActions(null|int|string $recordId): array
