@@ -18,6 +18,7 @@ return new class extends Migration
             $table->text('message');
             $table->string('priority')->default('low'); // low, medium, high
             $table->string('status')->default('open'); // open, closed
+            $table->foreignId('project_id')->nullable()->constrained()->nullOnDelete();
             $table->timestamps();
         });
     }

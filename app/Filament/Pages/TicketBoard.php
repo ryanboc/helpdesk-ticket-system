@@ -18,6 +18,7 @@ class TicketBoard extends KanbanBoard
     protected static ?string $navigationIcon = 'heroicon-o-view-columns';
     protected static ?string $navigationLabel = 'Ticket Board';
     protected static ?int $navigationSort = 2;
+    protected static bool $shouldRegisterNavigation = false;
 
     public $ticketComments = [];
 
@@ -33,7 +34,7 @@ class TicketBoard extends KanbanBoard
     protected function records(): \Illuminate\Support\Collection
     {
         return Ticket::query()
-            ->with('assignedTo')
+            ->with('assignedTo','project')
             ->when(! auth()->user()->is_admin, function ($query) {
                 $query->where('user_id', auth()->id())
                       ->orWhere('assigned_to_id', auth()->id());
@@ -42,30 +43,7 @@ class TicketBoard extends KanbanBoard
             ->get();
     }
 
-    // public function onStatusChanged(int|string $recordId, string $status, array $fromOrderedIds, array $toOrderedIds): void
-    // {
-        
-    //     \Illuminate\Support\Facades\Log::info("DRAG EVENT FIRED:", [
-    //         'record_id' => $recordId,
-    //         'new_status' => $status
-    //     ]);
-
-        
-    //     $ticket = Ticket::find($recordId);
-
-    //     if (!$ticket) {
-    //         \Illuminate\Support\Facades\Log::error("TICKET NOT FOUND: ID " . $recordId);
-    //         return;
-    //     }
-
-        
-    //     try {
-    //         $ticket->update(['status' => $status]);
-    //         \Illuminate\Support\Facades\Log::info("UPDATE SUCCESSFUL: Ticket #{$recordId} -> {$status}");
-    //     } catch (\Exception $e) {
-    //         \Illuminate\Support\Facades\Log::error("UPDATE FAILED: " . $e->getMessage());
-    //     }
-    // }
+    
 
     public function onStatusChanged(int|string $recordId, string $status, array $fromOrderedIds, array $toOrderedIds): void
     {
@@ -153,6 +131,12 @@ class TicketBoard extends KanbanBoard
                     Forms\Components\Select::make('priority')
                         ->options(['low' => 'Low', 'medium' => 'Medium', 'high' => 'High'])
                         ->required(),
+                    Forms\Components\Select::make('project_id')
+                    ->relationship('project', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->required() // Optional: make it required if you want
+                    ->columnSpanFull(),
                 ])
                 ->mutateFormDataUsing(function (array $data): array {
                     $data['user_id'] = auth()->id();
@@ -188,19 +172,20 @@ class TicketBoard extends KanbanBoard
                 Forms\Components\Select::make('status')
                     ->options(['open' => 'Open', 'in_progress' => 'In Progress', 'closed' => 'Closed'])
                     ->required(),
+                Forms\Components\Select::make('project_id')
+                    ->relationship('project', 'name')
+                    ->label('Project')
+                    ->searchable()
+                    ->preload(),
             ]),
 
-            // Forms\Components\TextInput::make('title')->required()->columnSpanFull(),
+            
             Forms\Components\RichEditor::make('original_message')
                 ->label('Original Issue')
                 ->disabled() // Keep it read-only
                 ->columnSpanFull(),
             
-            // Forms\Components\Textarea::make('original_message')
-            //     ->label('Original Issue')
-            //     ->disabled()
-            //     ->rows(3)
-            //     ->columnSpanFull(),
+            
 
             Forms\Components\Section::make('Work Notes & History')
                 ->schema([

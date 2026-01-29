@@ -9,6 +9,27 @@
         {{ $record->priority === 'high' ? 'bg-red-500' : ($record->priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500') }}">
     </div>
 
+    @if($record->project)
+        @php
+            // Define the specific color styles for each option
+            $colors = [
+                'gray'   => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200',
+                'blue'   => 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300',
+                'green'  => 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300',
+                'purple' => 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300',
+                'red'    => 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300',
+                'orange' => 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300',
+            ];
+            
+            // Default to gray if the color isn't found
+            $badgeClass = $colors[$record->project->color] ?? $colors['gray'];
+        @endphp
+
+        <span class="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ring-opacity-10 {{ $badgeClass }}">
+            {{ $record->project->name }}
+        </span>
+    @endif
+
     <div class="flex justify-between items-center mb-2 pl-2">
         <span class="text-[10px] font-mono font-bold text-gray-400 group-hover:text-blue-500 transition-colors">
             TK-{{ $record->id }}
