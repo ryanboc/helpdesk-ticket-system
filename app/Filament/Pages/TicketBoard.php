@@ -144,7 +144,12 @@ class TicketBoard extends KanbanBoard
                         ->searchable()
                         ->preload(),
                     Forms\Components\TextInput::make('title')->required(),
-                    Forms\Components\Textarea::make('message')->required(),
+                    Forms\Components\RichEditor::make('message')
+                        ->required()
+                        ->label('Description & Screenshots')
+                        ->fileAttachmentsDisk('public') // Store images in public folder
+                        ->fileAttachmentsDirectory('ticket-images') // Subfolder name
+                        ->fileAttachmentsVisibility('public'),
                     Forms\Components\Select::make('priority')
                         ->options(['low' => 'Low', 'medium' => 'Medium', 'high' => 'High'])
                         ->required(),
@@ -185,14 +190,17 @@ class TicketBoard extends KanbanBoard
                     ->required(),
             ]),
 
-            Forms\Components\TextInput::make('title')->required()->columnSpanFull(),
-
-            
-            Forms\Components\Textarea::make('original_message')
+            // Forms\Components\TextInput::make('title')->required()->columnSpanFull(),
+            Forms\Components\RichEditor::make('original_message')
                 ->label('Original Issue')
-                ->disabled()
-                ->rows(3)
+                ->disabled() // Keep it read-only
                 ->columnSpanFull(),
+            
+            // Forms\Components\Textarea::make('original_message')
+            //     ->label('Original Issue')
+            //     ->disabled()
+            //     ->rows(3)
+            //     ->columnSpanFull(),
 
             Forms\Components\Section::make('Work Notes & History')
                 ->schema([
