@@ -105,7 +105,7 @@ class TicketBoard extends KanbanBoard
         $this->dispatch('open-modal', id: 'kanban--edit-record-modal');
     }
 
-    protected function getEditModalRecordData(null|int|string $recordId, array $data): array
+    protected function getEditModalRecordData(null|int|string $recordId, array $data = []): array
     {
         return Ticket::find($recordId)?->toArray() ?? [];
     }
@@ -241,70 +241,106 @@ class TicketBoard extends KanbanBoard
     //     $this->dispatch('refresh-kanban');
     // }
 
+    // public function editModalFormSubmitted(): void
+    // {
+    //     $data = $this->editModalFormState;
+    //     $record = Ticket::find($this->editModalRecordId);
+
+    //     if ($record) {
+    //         // 1. NEW: Capture old assignee ID before updating
+    //         $oldAssignee = $record->assigned_to_id;
+
+    //         // 2. Update the record
+    //         $record->update([
+    //             'assigned_to_id' => $data['assigned_to_id'],
+    //             'title'          => $data['title'],
+    //             'status'         => $data['status'],
+    //             'priority'       => $data['priority'],
+    //         ]);
+
+    //         // 3. NEW: Notify if Assignment Changed
+    //         if ($oldAssignee !== $data['assigned_to_id'] && $data['assigned_to_id']) {
+    //             $newAssignee = \App\Models\User::find($data['assigned_to_id']);
+                
+    //             if ($newAssignee) {
+    //                 Notification::make()
+    //                     ->title('New Ticket Assigned')
+    //                     ->body("You have been assigned to '{$record->title}'")
+    //                     ->success()
+    //                     ->sendToDatabase($newAssignee);
+    //             }
+    //         }
+
+    //         // 4. Create Comment & Notify
+    //         if (!empty($data['new_comment'])) {
+    //             Comment::create([
+    //                 'ticket_id' => $record->id,
+    //                 'user_id'   => auth()->id(),
+    //                 'body'      => $data['new_comment'],
+    //             ]);
+
+    //             // Notify the assignee (if it's not me)
+    //             if ($record->assignedTo && $record->assigned_to_id !== auth()->id()) {
+    //                 Notification::make()
+    //                     ->title('New Comment')
+    //                     ->body(auth()->user()->name . " commented on '{$record->title}'")
+    //                     ->icon('heroicon-o-chat-bubble-left-right')
+    //                     ->warning()
+    //                     ->sendToDatabase($record->assignedTo);
+    //             }
+    //         }
+    //     }
+
+    //     $this->dispatch('close-modal', id: 'kanban--edit-record-modal');
+    //     $this->dispatch('refresh-kanban');
+
+    //     // 5. NEW: Success Toast for the user who clicked Save
+    //     // Notification::make()
+    //     //     ->title('Saved successfully')
+    //     //     ->success()
+    //     //     ->send();
+    //     Notification::make()
+    //         ->title('System Test')
+    //         ->body('If you see this, the Bell is working!')
+    //         ->success()
+    //         ->sendToDatabase(auth()->user()) // <--- Force send to YOU
+    //         ->send(); // <--- Also show the Toast
+    // }
+
     public function editModalFormSubmitted(): void
     {
+        // 1. Get the data from the Livewire property
         $data = $this->editModalFormState;
-        $record = Ticket::find($this->editModalRecordId);
 
-        if ($record) {
-            // 1. NEW: Capture old assignee ID before updating
-            $oldAssignee = $record->assigned_to_id;
+        // 2. Get the ticket
+        $ticket = Ticket::find($this->editModalRecordId);
+        
+        // 3. Update the ticket
+        $ticket->update(collect($data)->except(['new_comment', 'history'])->toArray());
 
-            // 2. Update the record
-            $record->update([
-                'assigned_to_id' => $data['assigned_to_id'],
-                'title'          => $data['title'],
-                'status'         => $data['status'],
-                'priority'       => $data['priority'],
+        // 4. Save Comment (if exists)
+        if (! empty($data['new_comment'])) {
+            \App\Models\Comment::create([
+                'ticket_id' => $ticket->id,
+                'user_id'   => auth()->id(),
+                'body'      => $data['new_comment'],
             ]);
 
-            // 3. NEW: Notify if Assignment Changed
-            if ($oldAssignee !== $data['assigned_to_id'] && $data['assigned_to_id']) {
-                $newAssignee = \App\Models\User::find($data['assigned_to_id']);
-                
-                if ($newAssignee) {
-                    Notification::make()
-                        ->title('New Ticket Assigned')
-                        ->body("You have been assigned to '{$record->title}'")
-                        ->success()
-                        ->sendToDatabase($newAssignee);
-                }
-            }
-
-            // 4. Create Comment & Notify
-            if (!empty($data['new_comment'])) {
-                Comment::create([
-                    'ticket_id' => $record->id,
-                    'user_id'   => auth()->id(),
-                    'body'      => $data['new_comment'],
-                ]);
-
-                // Notify the assignee (if it's not me)
-                if ($record->assignedTo && $record->assigned_to_id !== auth()->id()) {
-                    Notification::make()
-                        ->title('New Comment')
-                        ->body(auth()->user()->name . " commented on '{$record->title}'")
-                        ->icon('heroicon-o-chat-bubble-left-right')
-                        ->warning()
-                        ->sendToDatabase($record->assignedTo);
-                }
+            // Notification logic (Optional)
+            if ($ticket->assignedTo && $ticket->assignedTo->id !== auth()->id()) {
+                \Filament\Notifications\Notification::make()
+                    ->title('New Comment on Ticket')
+                    ->body(auth()->user()->name . ' commented on ' . $ticket->title)
+                    ->success()
+                    ->sendToDatabase($ticket->assignedTo);
             }
         }
-
-        $this->dispatch('close-modal', id: 'kanban--edit-record-modal');
-        $this->dispatch('refresh-kanban');
-
-        // 5. NEW: Success Toast for the user who clicked Save
-        // Notification::make()
-        //     ->title('Saved successfully')
-        //     ->success()
-        //     ->send();
-        Notification::make()
-            ->title('System Test')
-            ->body('If you see this, the Bell is working!')
+        
+        // 5. Notify user
+        \Filament\Notifications\Notification::make()
+            ->title('Ticket Updated')
             ->success()
-            ->sendToDatabase(auth()->user()) // <--- Force send to YOU
-            ->send(); // <--- Also show the Toast
+            ->send();
     }
 
     protected function getEditModalActions(null|int|string $recordId): array

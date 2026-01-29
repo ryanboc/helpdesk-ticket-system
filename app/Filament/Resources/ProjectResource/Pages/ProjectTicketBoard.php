@@ -123,7 +123,7 @@ class ProjectTicketBoard extends KanbanBoard
             Forms\Components\TextInput::make('title')->required()->columnSpanFull(),
 
             // The Rich Text "Original Issue" display
-            Forms\Components\RichEditor::make('message')
+            Forms\Components\RichEditor::make('original_message')
                 ->label('Original Issue')
                 ->disabled() // Read-only so history isn't changed
                 ->columnSpanFull(),
@@ -158,7 +158,7 @@ class ProjectTicketBoard extends KanbanBoard
         
         // 3. Update standard fields (title, priority, assigned_to)
         // We use $data here just like before
-        $ticket->update(collect($data)->except(['new_comment', 'history'])->toArray());
+        $ticket->update(collect($data)->except(['new_comment', 'history', 'original_message'])->toArray());
 
         // 4. If there is a new comment, save it
         if (! empty($data['new_comment'])) {
@@ -180,5 +180,31 @@ class ProjectTicketBoard extends KanbanBoard
         
         // 5. Close the modal and refresh
         $this->record = $ticket->project; // Keep the project context
+    }
+
+    protected function getEditModalRecordData(null|int|string $recordId, array $data = []): array
+    {
+        return Ticket::find($recordId)?->toArray() ?? [];
+    }
+
+    public function recordClicked(int|string $recordId, array $data = []): void
+    {
+        $this->editModalRecordId = $recordId;
+        
+        $record = Ticket::find($recordId);
+        
+        if ($record) {
+            // Populate the form data manually so 'original_message' works
+            $this->editModalFormState = [
+                'assigned_to_id' => $record->assigned_to_id,
+                'title'          => $record->title,
+                'original_message' => $record->message, // Map message to original_message
+                'status'         => $record->status,
+                'priority'       => $record->priority,
+                'project_id'     => $record->project_id,
+            ];
+        }
+
+        $this->dispatch('open-modal', id: 'kanban--edit-record-modal');
     }
 }
