@@ -341,6 +341,8 @@ class TicketBoard extends KanbanBoard
             ->title('Ticket Updated')
             ->success()
             ->send();
+
+        $this->dispatch('close-modal', id: 'kanban--edit-record-modal');
     }
 
     protected function getEditModalActions(null|int|string $recordId): array

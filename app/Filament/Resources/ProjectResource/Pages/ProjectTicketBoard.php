@@ -180,6 +180,7 @@ class ProjectTicketBoard extends KanbanBoard
         
         // 5. Close the modal and refresh
         $this->record = $ticket->project; // Keep the project context
+        $this->dispatch('close-modal', id: 'kanban--edit-record-modal');
     }
 
     protected function getEditModalRecordData(null|int|string $recordId, array $data = []): array
