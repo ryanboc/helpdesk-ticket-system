@@ -3,25 +3,26 @@
 namespace App\Filament\Resources\ProjectResource\Pages;
 
 use App\Filament\Resources\ProjectResource;
-use App\Models\Ticket;
 use App\Models\Project;
-use Filament\Resources\Pages\Page;
-use Mokhosh\FilamentKanban\Pages\KanbanBoard;
+use App\Models\Ticket;
 use Filament\Actions\CreateAction;
 use Filament\Forms;
 use Illuminate\Support\Collection;
+use Mokhosh\FilamentKanban\Pages\KanbanBoard;
 
 class ProjectTicketBoard extends KanbanBoard
 {
-  
     protected static string $resource = ProjectResource::class;
+
     protected static bool $shouldRegisterNavigation = false;
+
     protected static string $model = Ticket::class;
+
     protected static string $recordView = 'filament.pages.kanban-card';
-    
+
     public function getTitle(): string
     {
-        return $this->record->name . ' - Ticket Board';
+        return $this->record->name.' - Ticket Board';
     }
 
     public $record;
@@ -32,7 +33,7 @@ class ProjectTicketBoard extends KanbanBoard
         // Get the 'record' (ID) from the URL parameter
         $recordId = request()->route()->parameter('record');
         $this->record = Project::findOrFail($recordId);
-        
+
         parent::mount();
     }
 
@@ -41,7 +42,7 @@ class ProjectTicketBoard extends KanbanBoard
         return collect([
             ['id' => 'open', 'title' => 'Open'],
             ['id' => 'in_progress', 'title' => 'In Progress'],
-            ['id' => 'closed', 'title' => 'Closed'],
+            ['id' => 'finished', 'title' => 'Finished'],
         ]);
     }
 
@@ -69,23 +70,42 @@ class ProjectTicketBoard extends KanbanBoard
                         ->preload(),
                     Forms\Components\TextInput::make('title')->required(),
                     Forms\Components\RichEditor::make('message')
-                        ->required()
+                        ->default('No additional details provided.')
                         ->fileAttachmentsDisk('public')
                         ->fileAttachmentsDirectory('ticket-images')
                         ->fileAttachmentsVisibility('public'),
                     Forms\Components\Select::make('priority')
                         ->options(['low' => 'Low', 'medium' => 'Medium', 'high' => 'High'])
+                        ->default('medium')
                         ->required(),
+                    Forms\Components\DatePicker::make('deadline_date')
+                        ->label('Deadline')
+                        ->native(false),
+                    Forms\Components\Section::make('Recurring ticket')
+                        ->description('Use for repeating work such as daily database backups or certificate renewals.')
+                        ->compact()
+                        ->collapsed()
+                        ->schema([
+                            Forms\Components\Toggle::make('is_recurring')->label('Create recurring tickets')->live(),
+                            Forms\Components\Select::make('recurrence_frequency')->label('Repeats')->options([
+                                'daily' => 'Daily', 'weekly' => 'Weekly', 'monthly' => 'Monthly',
+                            ])->default('daily')->required(fn (Forms\Get $get) => $get('is_recurring'))->visible(fn (Forms\Get $get) => $get('is_recurring')),
+                            Forms\Components\TextInput::make('recurrence_interval')->label('Every')->numeric()->minValue(1)->default(1)->required(fn (Forms\Get $get) => $get('is_recurring'))->visible(fn (Forms\Get $get) => $get('is_recurring')),
+                            Forms\Components\DatePicker::make('recurrence_next_at')->label('First ticket date')->default(today())->required(fn (Forms\Get $get) => $get('is_recurring'))->visible(fn (Forms\Get $get) => $get('is_recurring')),
+                            Forms\Components\DatePicker::make('recurrence_ends_at')->label('Stop after')->visible(fn (Forms\Get $get) => $get('is_recurring')),
+                        ])->columns(2),
                 ])
                 ->mutateFormDataUsing(function (array $data): array {
                     $data['user_id'] = auth()->id();
                     $data['status'] = 'open';
                     $data['project_id'] = $this->record->id; // Auto-assign Project
+                    $data['message'] = $data['message'] ?: 'No additional details provided.';
+
                     return $data;
                 }),
         ];
     }
-    
+
     // 7. Status Change Logic (Drag and Drop)
     public function onStatusChanged(int|string $recordId, string $status, array $fromOrderedIds, array $toOrderedIds): void
     {
@@ -110,14 +130,17 @@ class ProjectTicketBoard extends KanbanBoard
                     ->relationship('assignedTo', 'name')
                     ->searchable()
                     ->preload(),
-                    
+
                 Forms\Components\Select::make('priority')
                     ->options(['low' => 'Low', 'medium' => 'Medium', 'high' => 'High'])
                     ->required(),
 
                 Forms\Components\Select::make('status')
-                    ->options(['open' => 'Open', 'in_progress' => 'In Progress', 'closed' => 'Closed'])
+                    ->options(['open' => 'Open', 'in_progress' => 'In Progress', 'finished' => 'Finished'])
                     ->required(),
+                Forms\Components\DatePicker::make('deadline_date')
+                    ->label('Deadline')
+                    ->native(false),
             ]),
 
             Forms\Components\TextInput::make('title')->required()->columnSpanFull(),
@@ -131,19 +154,20 @@ class ProjectTicketBoard extends KanbanBoard
             // Work Notes & Comments Section
             Forms\Components\Section::make('Work Notes & History')
                 ->schema([
-                   Forms\Components\Placeholder::make('history')
-                    ->hiddenLabel()
-                    ->content(function () use ($recordId) {
-                        $comments = $recordId 
-                            ? \App\Models\Comment::where('ticket_id', $recordId)->with('user')->latest()->get() 
-                            : collect();
-                        return view('filament.pages.ticket-comments', ['comments' => $comments]);
-                    }),
-                
-                Forms\Components\Textarea::make('new_comment')
-                    ->label('Add a Note / Reply')
-                    ->placeholder('Type your reply here...')
-                    ->rows(3),
+                    Forms\Components\Placeholder::make('history')
+                        ->hiddenLabel()
+                        ->content(function () use ($recordId) {
+                            $comments = $recordId
+                                ? \App\Models\Comment::where('ticket_id', $recordId)->with('user')->latest()->get()
+                                : collect();
+
+                            return view('filament.pages.ticket-comments', ['comments' => $comments]);
+                        }),
+
+                    Forms\Components\Textarea::make('new_comment')
+                        ->label('Add a Note / Reply')
+                        ->placeholder('Type your reply here...')
+                        ->rows(3),
                 ]),
         ];
     }
@@ -155,7 +179,7 @@ class ProjectTicketBoard extends KanbanBoard
 
         // 2. Get the ticket
         $ticket = Ticket::find($this->editModalRecordId);
-        
+
         // 3. Update standard fields (title, priority, assigned_to)
         // We use $data here just like before
         $ticket->update(collect($data)->except(['new_comment', 'history', 'original_message'])->toArray());
@@ -164,20 +188,20 @@ class ProjectTicketBoard extends KanbanBoard
         if (! empty($data['new_comment'])) {
             \App\Models\Comment::create([
                 'ticket_id' => $ticket->id,
-                'user_id'   => auth()->id(),
-                'body'      => $data['new_comment'],
+                'user_id' => auth()->id(),
+                'body' => $data['new_comment'],
             ]);
 
             // Optional: Send notification to the assigned user
             if ($ticket->assignedTo && $ticket->assignedTo->id !== auth()->id()) {
                 \Filament\Notifications\Notification::make()
                     ->title('New Comment on Ticket')
-                    ->body(auth()->user()->name . ' commented on ' . $ticket->title)
+                    ->body(auth()->user()->name.' commented on '.$ticket->title)
                     ->success()
                     ->sendToDatabase($ticket->assignedTo);
             }
         }
-        
+
         // 5. Close the modal and refresh
         $this->record = $ticket->project; // Keep the project context
         $this->dispatch('close-modal', id: 'kanban--edit-record-modal');
@@ -191,18 +215,19 @@ class ProjectTicketBoard extends KanbanBoard
     public function recordClicked(int|string $recordId, array $data = []): void
     {
         $this->editModalRecordId = $recordId;
-        
+
         $record = Ticket::find($recordId);
-        
+
         if ($record) {
             // Populate the form data manually so 'original_message' works
             $this->editModalFormState = [
                 'assigned_to_id' => $record->assigned_to_id,
-                'title'          => $record->title,
+                'title' => $record->title,
                 'original_message' => $record->message, // Map message to original_message
-                'status'         => $record->status,
-                'priority'       => $record->priority,
-                'project_id'     => $record->project_id,
+                'status' => $record->status,
+                'priority' => $record->priority,
+                'deadline_date' => $record->deadline_date,
+                'project_id' => $record->project_id,
             ];
         }
 
