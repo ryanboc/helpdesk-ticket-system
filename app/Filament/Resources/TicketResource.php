@@ -31,52 +31,73 @@ class TicketResource extends Resource
     {
         return $form
             ->schema([
-            // 1. The "Assignee" (Agent working on the ticket)
-            Forms\Components\Select::make('assigned_to_id')
-                ->label('Assign to Employee')
-                ->relationship('assignedTo', 'name')
-                ->searchable()
-                ->preload()
-                ->placeholder('Unassigned'),
+                // 1. The "Assignee" (Agent working on the ticket)
+                Forms\Components\Select::make('assigned_to_id')
+                    ->label('Assign to Employee')
+                    ->relationship('assignedTo', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->placeholder('Unassigned'),
 
-            // 2. The "Creator" (Customer) - THIS WAS MISSING
-            Forms\Components\Select::make('user_id')
-                ->relationship('user', 'name')
-                ->default(auth()->id())
-                ->searchable()
-                ->preload()
-                ->required()
-                // Disable for non-admins so they can't pretend to be someone else
-                ->disabled(fn () => ! auth()->user()->is_admin)
-                // IMPORTANT: Send the data even if disabled!
-                ->dehydrated(),
+                // 2. The "Creator" (Customer) - THIS WAS MISSING
+                Forms\Components\Select::make('user_id')
+                    ->relationship('user', 'name')
+                    ->default(auth()->id())
+                    ->searchable()
+                    ->preload()
+                    ->required()
+                    // Disable for non-admins so they can't pretend to be someone else
+                    ->disabled(fn () => ! auth()->user()->is_admin)
+                    // IMPORTANT: Send the data even if disabled!
+                    ->dehydrated(),
 
-            Forms\Components\TextInput::make('title')
-                ->required()
-                ->maxLength(255)
-                ->columnSpanFull(), // Optional: Makes title take up full width
+                Forms\Components\TextInput::make('title')
+                    ->required()
+                    ->maxLength(255)
+                    ->columnSpanFull(), // Optional: Makes title take up full width
 
-            Forms\Components\Textarea::make('message')
-                ->required()
-                ->columnSpanFull(),
+                Forms\Components\Textarea::make('message')
+                    ->default('No additional details provided.')
+                    ->columnSpanFull(),
 
-            Forms\Components\Select::make('priority')
-                ->options([
-                    'low' => 'Low',
-                    'medium' => 'Medium',
-                    'high' => 'High',
-                ])
-                ->required(),
+                Forms\Components\Select::make('priority')
+                    ->options([
+                        'low' => 'Low',
+                        'medium' => 'Medium',
+                        'high' => 'High',
+                    ])
+                    ->default('medium')
+                    ->required(),
 
-            Forms\Components\Select::make('status')
-                ->options([
-                    'open' => 'Open',
-                    'in_progress' => 'In Progress',
-                    'closed' => 'Closed',
-                ])
-                ->default('open')
-                ->hiddenOn('create'),
-        ]);
+                Forms\Components\DatePicker::make('deadline_date')
+                    ->label('Deadline')
+                    ->native(false)
+                    ->helperText('Optional — appears in employee summaries.'),
+
+                Forms\Components\Select::make('status')
+                    ->options([
+                        'open' => 'Open',
+                        'in_progress' => 'In Progress',
+                        'closed' => 'Closed',
+                        'finished' => 'Finished',
+                    ])
+                    ->default('open')
+                    ->hiddenOn('create'),
+
+                Forms\Components\Section::make('Recurring ticket')
+                    ->description('Use this as a template for work that repeats, such as daily database backups or certificate renewals.')
+                    ->compact()
+                    ->collapsed()
+                    ->schema([
+                        Forms\Components\Toggle::make('is_recurring')->label('Create recurring tickets')->live(),
+                        Forms\Components\Select::make('recurrence_frequency')->label('Repeats')->options([
+                            'daily' => 'Daily', 'weekly' => 'Weekly', 'monthly' => 'Monthly',
+                        ])->default('daily')->required(fn (Forms\Get $get) => $get('is_recurring'))->visible(fn (Forms\Get $get) => $get('is_recurring')),
+                        Forms\Components\TextInput::make('recurrence_interval')->label('Every')->numeric()->minValue(1)->default(1)->required(fn (Forms\Get $get) => $get('is_recurring'))->visible(fn (Forms\Get $get) => $get('is_recurring')),
+                        Forms\Components\DatePicker::make('recurrence_next_at')->label('First ticket date')->default(today())->required(fn (Forms\Get $get) => $get('is_recurring'))->visible(fn (Forms\Get $get) => $get('is_recurring')),
+                        Forms\Components\DatePicker::make('recurrence_ends_at')->label('Stop after')->visible(fn (Forms\Get $get) => $get('is_recurring')),
+                    ])->columns(2)->columnSpanFull(),
+            ]);
     }
 
     public static function table(Table $table): Table
@@ -102,14 +123,22 @@ class TicketResource extends Resource
                         'medium' => 'warning',
                         'low' => 'success',
                     }),
-                
+
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
                         'open' => 'gray',
                         'in_progress' => 'info',
                         'closed' => 'success',
+                        'finished' => 'success',
                     }),
+
+                Tables\Columns\TextColumn::make('deadline_date')
+                    ->label('Deadline')
+                    ->date()
+                    ->placeholder('—')
+                    ->color(fn (Ticket $record): string => $record->deadline_date?->isPast() && ! in_array($record->status, ['closed', 'finished']) ? 'danger' : 'gray')
+                    ->sortable(),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime(),
@@ -117,6 +146,7 @@ class TicketResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('priority'),
                 Tables\Filters\SelectFilter::make('status'),
+                Tables\Filters\Filter::make('overdue')->query(fn (Builder $query): Builder => $query->whereDate('deadline_date', '<', today())->whereNotIn('status', ['closed', 'finished'])),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

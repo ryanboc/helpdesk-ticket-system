@@ -11,25 +11,30 @@ class Ticket extends Model
 {
     use HasFactory;
 
-   
     protected $primaryKey = 'id';
 
-  
     protected $guarded = [];
 
-    
+    protected function casts(): array
+    {
+        return [
+            'deadline_date' => 'date',
+            'is_recurring' => 'boolean',
+            'recurrence_next_at' => 'date',
+            'recurrence_ends_at' => 'date',
+        ];
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-   
     public function assignedTo(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_to_id');
     }
 
-    
     public function comments(): HasMany
     {
         return $this->hasMany(Comment::class);

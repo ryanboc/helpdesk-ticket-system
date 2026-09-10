@@ -56,6 +56,12 @@
         </h3>
     </div>
 
+    @if($record->deadline_date)
+        <div class="mb-3 pl-2 text-xs {{ $record->deadline_date->isPast() && ! in_array($record->status, ['finished', 'closed']) ? 'text-red-600 font-semibold' : 'text-gray-500 dark:text-gray-400' }}">
+            Deadline: {{ $record->deadline_date->format('M d, Y') }}
+        </div>
+    @endif
+
     <div class="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700 pl-2">
         <div class="flex items-center gap-2">
             @if($record->assignedTo)
