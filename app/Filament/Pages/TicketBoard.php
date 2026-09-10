@@ -99,6 +99,11 @@ class TicketBoard extends KanbanBoard
                 'status' => $record->status,
                 'priority' => $record->priority,
                 'deadline_date' => $record->deadline_date,
+                'is_recurring' => $record->is_recurring,
+                'recurrence_frequency' => $record->recurrence_frequency,
+                'recurrence_interval' => $record->recurrence_interval,
+                'recurrence_next_at' => $record->recurrence_next_at,
+                'recurrence_ends_at' => $record->recurrence_ends_at,
             ];
         }
 
@@ -180,6 +185,20 @@ class TicketBoard extends KanbanBoard
                     ->preload(),
                 Forms\Components\DatePicker::make('deadline_date')->label('Deadline')->native(false),
             ]),
+
+            Forms\Components\Section::make('Recurring ticket')
+                ->description('Turn this on for repeating work, or adjust its schedule.')
+                ->compact()
+                ->collapsed()
+                ->schema([
+                    Forms\Components\Toggle::make('is_recurring')->label('Create recurring tickets')->live(),
+                    Forms\Components\Select::make('recurrence_frequency')->label('Repeats')->options([
+                        'daily' => 'Daily', 'weekly' => 'Weekly', 'monthly' => 'Monthly',
+                    ])->default('daily')->required(fn (Forms\Get $get) => $get('is_recurring'))->visible(fn (Forms\Get $get) => $get('is_recurring')),
+                    Forms\Components\TextInput::make('recurrence_interval')->label('Every')->numeric()->minValue(1)->default(1)->required(fn (Forms\Get $get) => $get('is_recurring'))->visible(fn (Forms\Get $get) => $get('is_recurring')),
+                    Forms\Components\DatePicker::make('recurrence_next_at')->label('First ticket date')->default(today())->required(fn (Forms\Get $get) => $get('is_recurring'))->visible(fn (Forms\Get $get) => $get('is_recurring')),
+                    Forms\Components\DatePicker::make('recurrence_ends_at')->label('Stop after')->visible(fn (Forms\Get $get) => $get('is_recurring')),
+                ])->columns(2),
 
             Forms\Components\RichEditor::make('original_message')
                 ->label('Original Issue')
@@ -311,7 +330,7 @@ class TicketBoard extends KanbanBoard
         $ticket = Ticket::find($this->editModalRecordId);
 
         // 3. Update the ticket
-        $ticket->update(collect($data)->except(['new_comment', 'history'])->toArray());
+        $ticket->update(collect($data)->except(['new_comment', 'history', 'original_message'])->toArray());
 
         // 4. Save Comment (if exists)
         if (! empty($data['new_comment'])) {

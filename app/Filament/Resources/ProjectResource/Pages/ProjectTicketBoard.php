@@ -143,6 +143,20 @@ class ProjectTicketBoard extends KanbanBoard
                     ->native(false),
             ]),
 
+            Forms\Components\Section::make('Recurring ticket')
+                ->description('Turn this on for repeating work, or adjust its schedule.')
+                ->compact()
+                ->collapsed()
+                ->schema([
+                    Forms\Components\Toggle::make('is_recurring')->label('Create recurring tickets')->live(),
+                    Forms\Components\Select::make('recurrence_frequency')->label('Repeats')->options([
+                        'daily' => 'Daily', 'weekly' => 'Weekly', 'monthly' => 'Monthly',
+                    ])->default('daily')->required(fn (Forms\Get $get) => $get('is_recurring'))->visible(fn (Forms\Get $get) => $get('is_recurring')),
+                    Forms\Components\TextInput::make('recurrence_interval')->label('Every')->numeric()->minValue(1)->default(1)->required(fn (Forms\Get $get) => $get('is_recurring'))->visible(fn (Forms\Get $get) => $get('is_recurring')),
+                    Forms\Components\DatePicker::make('recurrence_next_at')->label('First ticket date')->default(today())->required(fn (Forms\Get $get) => $get('is_recurring'))->visible(fn (Forms\Get $get) => $get('is_recurring')),
+                    Forms\Components\DatePicker::make('recurrence_ends_at')->label('Stop after')->visible(fn (Forms\Get $get) => $get('is_recurring')),
+                ])->columns(2),
+
             Forms\Components\TextInput::make('title')->required()->columnSpanFull(),
 
             // The Rich Text "Original Issue" display
@@ -227,6 +241,11 @@ class ProjectTicketBoard extends KanbanBoard
                 'status' => $record->status,
                 'priority' => $record->priority,
                 'deadline_date' => $record->deadline_date,
+                'is_recurring' => $record->is_recurring,
+                'recurrence_frequency' => $record->recurrence_frequency,
+                'recurrence_interval' => $record->recurrence_interval,
+                'recurrence_next_at' => $record->recurrence_next_at,
+                'recurrence_ends_at' => $record->recurrence_ends_at,
                 'project_id' => $record->project_id,
             ];
         }
