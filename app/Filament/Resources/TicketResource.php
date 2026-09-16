@@ -146,7 +146,13 @@ class TicketResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('priority'),
                 Tables\Filters\SelectFilter::make('status'),
-                Tables\Filters\Filter::make('overdue')->query(fn (Builder $query): Builder => $query->whereDate('deadline_date', '<', today())->whereNotIn('status', ['closed', 'finished'])),
+                Tables\Filters\Filter::make('needs_attention')
+                    ->label('Needs attention')
+                    ->query(fn (Builder $query): Builder => $query->whereNotIn('status', ['closed', 'finished'])),
+                Tables\Filters\Filter::make('overdue')
+                    ->query(fn (Builder $query): Builder => $query
+                        ->whereDate('deadline_date', '<', today())
+                        ->whereNotIn('status', ['closed', 'finished'])),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

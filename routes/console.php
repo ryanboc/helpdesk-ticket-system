@@ -11,3 +11,10 @@ Artisan::command('inspire', function () {
 Schedule::command('tickets:create-recurring')->dailyAt('00:05')->withoutOverlapping();
 Schedule::command('tickets:send-summaries daily')->dailyAt('08:00')->withoutOverlapping();
 Schedule::command('tickets:send-summaries weekly')->weeklyOn(1, '08:00')->withoutOverlapping();
+
+if (filled(config('helpdesk.manager_report_email'))) {
+    Schedule::command('tickets:send-manager-report', [
+        config('helpdesk.manager_report_email'),
+        'week',
+    ])->weeklyOn(1, '08:30')->withoutOverlapping();
+}
