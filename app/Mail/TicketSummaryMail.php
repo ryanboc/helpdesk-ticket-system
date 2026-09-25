@@ -18,7 +18,7 @@ class TicketSummaryMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: ucfirst($this->frequency).' ticket summary');
+        return new Envelope(subject: ucfirst($this->frequency).' Ticket Summary');
     }
 
     public function content(): Content
