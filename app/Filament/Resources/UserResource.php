@@ -9,6 +9,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Hash;
 
 class UserResource extends Resource
@@ -63,6 +64,35 @@ class UserResource extends Resource
     {
         // Only show this menu item if the user is an Admin
         return auth()->user()?->is_admin ?? false;
+    }
+
+    /**
+     * Hiding the navigation item is only cosmetic; Filament also calls these
+     * authorization hooks for directly entered resource URLs and actions.
+     */
+    public static function canViewAny(): bool
+    {
+        return (bool) auth()->user()?->is_admin;
+    }
+
+    public static function canCreate(): bool
+    {
+        return (bool) auth()->user()?->is_admin;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return (bool) auth()->user()?->is_admin;
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return (bool) auth()->user()?->is_admin;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return (bool) auth()->user()?->is_admin;
     }
 
     public static function table(Table $table): Table
